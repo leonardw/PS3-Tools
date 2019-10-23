@@ -12,11 +12,15 @@
   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-																			*/
+
+  [www.ps3devwiki.com](https://web.archive.org/web/20130728021443/http://www.ps3devwiki.com/index.php?title=Main_Page)
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <unistd.h>
 
 #define FILE_VERSION 0x4
 #define NAME_TABLE 0x8
@@ -48,17 +52,30 @@ void print_params_value( char message[ ], unsigned char *data_utf8[ ], int count
 	}
 }
 
-int main( int argc, char *argv[ ] ) 
+int main( int argc, char *argv[ ] )
 {
-	if( argc != 2 ) 
-	{
-		printf( "Usage: %s PARAM.SFO\n", argv[ 0 ] );
+	int opt;
+	bool verbose = true;
+	extern int optind;
+
+	while ( (opt = getopt(argc, argv, "m")) != -1 ) {
+		switch (opt) {
+			case 'm':
+				verbose = false;
+				break;
+			default:
+				fprintf(stderr, "Usage: %s [-m] PARAM.SFO\n", argv[0]);
+				exit(1);
+		}
+	}
+	if ( optind >= argc ) {
+		fprintf(stderr, "Usage: %s [-m] PARAM.SFO\n", argv[0]);
 		exit(1);
 	}
 
 	FILE *sfo;
 
-	sfo = fopen( argv[ 1 ], "r+" ); 
+	sfo = fopen( argv[ optind ], "r+" ); 
 	if( sfo == NULL ) 
 	{
 		perror( "Error opening file" );
@@ -123,9 +140,14 @@ int main( int argc, char *argv[ ] )
 	}
 	fclose( sfo );
 
-	printf( "\n****************\n|    HEADER    |\n****************\n\n" );
-	printf( "FILE_VERSION: %#x\n\nN°_PARAMETERS: %d\n\n", file_version, entries_num );
-	printf( "****************\n|  PARAMETERS  |\n****************\n\n" );
+	if ( verbose ) {
+		printf( "\n****************\n|    HEADER    |\n****************\n\n" );
+		printf( "FILE_VERSION: %#x\n\nN°_PARAMETERS: %d\n\n", file_version, entries_num );
+		printf( "****************\n|  PARAMETERS  |\n****************\n\n" );
+	} else {
+		printf( "FILE_VERSION: %#x\n", file_version );
+		printf( "PARAMETER_COUNT: %d\n", entries_num );
+	}
 
 	int y;
 
@@ -134,7 +156,8 @@ int main( int argc, char *argv[ ] )
 		printf( "%s: ", list_param[ y ] );
 		if( data_type[ y ] == DATA_INT ) 
 		{
-			printf( "0x%.2x\n\n", data_int[ y ] );
+			printf( "0x%.2x\n", data_int[ y ] );
+			if ( verbose ) printf( "\n" );
 		}	
 		else if( data_type[ y ] == DATA_UTF_SPEC ) 
 		{
@@ -150,7 +173,8 @@ int main( int argc, char *argv[ ] )
 					print_params_value( "\n\tuserid    | ", data_utf, y, 0x4 );
 					print_params_value( "\n\taccountid | ", data_utf, y, 0x10 );
 					print_params_value( "\n\tunknown   | ", data_utf, y, 0x4 );
-					printf( ".. .. .. (end at offset 0x%.2x)\n\n", data_start + offset_data[ y + 1 ] );
+					printf( ".. .. .. (end at offset 0x%.2x)\n", data_start + offset_data[ y + 1 ] );
+					if ( verbose ) printf( "\n" );
 					break;
 				case SAVEDATA_FILE_LIST_SIZE:
 					printf( "file name  | %s\n\t\t    file hash? | ", data_utf[ y ] );
@@ -165,7 +189,8 @@ int main( int argc, char *argv[ ] )
 						printf( "%.2x ", *(data_utf[ y ] + 0xD) );
 						++data_utf[ y ];
 					}
-					printf( ".. .. .. (end at offset 0x%.2x)\n\n", data_start + offset_data[ y + 1 ] );
+					printf( ".. .. .. (end at offset 0x%.2x)\n", data_start + offset_data[ y + 1 ] );
+					if ( verbose ) printf( "\n" );
 					break;
 				case SAVEDATA_PARAMS_SIZE:
 					print_params_value( "not change | ", data_utf, y, 0x10 );
@@ -176,7 +201,8 @@ int main( int argc, char *argv[ ] )
 					print_params_value( "\n\t\t not change | ", data_utf, y, 0x10 );
 					print_params_value( "\n\t\t not change | ", data_utf, y, 0x10 );
 					print_params_value( "\n\t\t change     | ", data_utf, y, 0x10 );
-					printf( "\n\n" );
+					printf( "\n" );
+					if ( verbose ) printf( "\n" );
 					break;
 				default:
 					for( i = 0; i < data_used[ y ]; i++ ) 
@@ -184,12 +210,17 @@ int main( int argc, char *argv[ ] )
 						printf( "%.2x ", *data_utf[ y ] );
 						++data_utf[ y ];
 					}
-					printf( "\n\n" );
+					printf( "\n" );
+					if ( verbose ) printf( "\n" );
 			}
 		}
-		else /* DATA UTF8 */
-			printf( "%s\n\n", data_utf[ y ] );
+		else { /* DATA UTF8 */
+			printf( "%s\n", data_utf[ y ] );
+			if ( verbose ) printf( "\n" );
+		}
 	}
-	printf( "\n** Thanks www.ps3devwiki.com :D **\n\n" );
+	if ( verbose ) {
+		printf( "\n** Thanks www.ps3devwiki.com :D **\n\n" );
+	}
 	return 0;
 }
